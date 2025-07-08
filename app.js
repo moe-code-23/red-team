@@ -85,15 +85,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderResultCard = (title, icon, content) => {
             const panel = document.createElement('div');
             panel.className = 'module-panel';
+            
             const panelTitle = document.createElement('h5');
             panelTitle.className = 'panel-title';
-            panelTitle.innerHTML = `<i class="fa-solid ${icon}"></i> ${title}`;
+            
+            const iconEl = document.createElement('i');
+            iconEl.className = `fa-solid ${icon}`;
+            
+            panelTitle.appendChild(iconEl);
+            panelTitle.appendChild(document.createTextNode(` ${title}`));
+
             const pre = document.createElement('pre');
             pre.textContent = content;
+            
             panel.appendChild(panelTitle);
             panel.appendChild(pre);
             return panel;
         };
+
+        const renderErrorCard = (errorMessage) => {
+            const panel = document.createElement('div');
+            panel.className = 'module-panel';
+
+            const panelTitle = document.createElement('h5');
+            panelTitle.className = 'panel-title';
+            panelTitle.style.color = '#e53935';
+
+            const iconEl = document.createElement('i');
+            iconEl.className = 'fa-solid fa-bug';
+
+            panelTitle.appendChild(iconEl);
+            panelTitle.appendChild(document.createTextNode(' An Error Occurred'));
+
+            const pre = document.createElement('pre');
+            pre.textContent = errorMessage;
+
+            panel.appendChild(panelTitle);
+            panel.appendChild(pre);
+            return panel;
+        }
 
         scanButton.addEventListener('click', async () => {
             const domain = domainInput.value.trim();
@@ -108,8 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!response.ok) {
                     throw new Error(data.error || `API Error: ${response.statusText}`);
                 }
-                
-                toggleLoading(false);
                 
                 const row = document.createElement('div');
                 row.className = 'row';
@@ -129,8 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsEl.appendChild(row);
 
             } catch(error) {
+                resultsEl.appendChild(renderErrorCard(error.message));
+            } finally {
                 toggleLoading(false);
-                resultsEl.innerHTML = `<div class="module-panel"><h5 class="panel-title" style="color: #e53935;"><i class="fa-solid fa-bug"></i> An Error Occurred</h5><pre>${error.message}</pre></div>`;
             }
         });
     };
