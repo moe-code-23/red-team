@@ -1,19 +1,49 @@
 const ipRequestMap = new Map();
-const RATE_LIMIT_WINDOW = 60000; // 1 minute in milliseconds
-const MAX_REQUESTS_PER_WINDOW = 10; // Allow 10 requests per minute per user
-const IP_CLEANUP_INTERVAL = 300000; // 5 minutes
+const keyUsageMap = new Map();
+const RATE_LIMIT_WINDOW = 60000;
+const MAX_REQUESTS_PER_WINDOW = 10;
+const IP_CLEANUP_INTERVAL = 300000;
+const VT_REQUESTS_PER_MINUTE = 4;
 
-// Function to get the real client IP address
+const getVTApiKeys = () => {
+    const keys = [];
+    for (let i = 1; i <= 5; i++) {
+        const key = process.env[`VT_API_KEY_${i}`];
+        if (key) keys.push(key);
+    }
+    return keys.length > 0 ? keys : [process.env.VT_API_KEY].filter(Boolean);
+};
+
+const getAvailableVTKey = () => {
+    const keys = getVTApiKeys();
+    const now = Date.now();
+    
+    for (const key of keys) {
+        if (!keyUsageMap.has(key)) {
+            keyUsageMap.set(key, []);
+        }
+        
+        const usage = keyUsageMap.get(key);
+        const recentUsage = usage.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+        keyUsageMap.set(key, recentUsage);
+        
+        if (recentUsage.length < VT_REQUESTS_PER_MINUTE) {
+            recentUsage.push(now);
+            return key;
+        }
+    }
+    
+    return null;
+};
+
 const getClientIp = (req) => {
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) {
-        // 'x-forwarded-for' can be a comma-separated list of IPs. The first one is the original client.
         return forwarded.split(',')[0].trim();
     }
     return req.socket?.remoteAddress || req.headers['x-real-ip'] || '127.0.0.1';
 };
 
-// Periodically clean up old entries from the map
 setInterval(() => {
     const now = Date.now();
     for (const [ip, timestamps] of ipRequestMap.entries()) {
@@ -23,6 +53,11 @@ setInterval(() => {
         } else {
             ipRequestMap.set(ip, recentTimestamps);
         }
+    }
+    
+    for (const [key, timestamps] of keyUsageMap.entries()) {
+        const recentTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
+        keyUsageMap.set(key, recentTimestamps);
     }
 }, IP_CLEANUP_INTERVAL);
 
@@ -35,8 +70,6 @@ export default async function handler(request, response) {
     }
 
     const requests = ipRequestMap.get(ip);
-    
-    // Filter out requests that are outside the time window
     const recentRequests = requests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
     ipRequestMap.set(ip, recentRequests);
 
@@ -47,13 +80,11 @@ export default async function handler(request, response) {
     recentRequests.push(now);
 
     const domain = request.query.domain;
-    const vtApiKey = process.env.VT_API_KEY;
 
     if (!domain) {
         return response.status(400).json({ error: 'Domain is required' });
     }
 
-    // Basic domain validation regex
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
     if (!domainRegex.test(domain)) {
         return response.status(400).json({ error: 'Invalid domain format' });
@@ -63,45 +94,73 @@ export default async function handler(request, response) {
         const res = await fetch(`https://crt.sh/?q=%.${domain}&output=json`);
         if (!res.ok) throw new Error('crt.sh API request failed.');
         const data = await res.json();
-        const subdomains = [...new Set(data.map(item => item.name_value.replace(/\\*\\./g, '').toLowerCase()))].sort();
+        const subdomains = [...new Set(data.map(item => item.name_value.replace(/\*\./g, '').toLowerCase()))].sort();
         return subdomains.length > 0 ? subdomains.join('\n') : 'No subdomains found.';
     };
 
     const fetchVirusTotal = async () => {
-        if (!vtApiKey) return 'VirusTotal API Key not set on server.';
+        const vtApiKey = getAvailableVTKey();
+        if (!vtApiKey) return 'All VirusTotal API keys exhausted. Try again in a minute.';
         
-        const scanUrl = 'https://www.virustotal.com/api/v3/urls';
-        const scanOptions = {
-            method: 'POST',
-            headers: { 'x-apikey': vtApiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `url=https://${domain}`
-        };
-        const scanResponse = await fetch(scanUrl, scanOptions);
-        if (!scanResponse.ok) throw new Error(`VT Scan Submission Error: ${scanResponse.statusText}`);
-        const scanData = await scanResponse.json();
-        if (scanData.error) throw new Error(`VT Scan Error: ${scanData.error.message}`);
-        const analysisId = scanData.data.id;
+        try {
+            const scanUrl = 'https://www.virustotal.com/api/v3/urls';
+            const scanOptions = {
+                method: 'POST',
+                headers: { 'x-apikey': vtApiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `url=https://${domain}`
+            };
+            const scanResponse = await fetch(scanUrl, scanOptions);
+            if (!scanResponse.ok) throw new Error(`VT Scan Submission Error: ${scanResponse.statusText}`);
+            const scanData = await scanResponse.json();
+            if (scanData.error) throw new Error(`VT Scan Error: ${scanData.error.message}`);
+            const analysisId = scanData.data.id;
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 5000));
 
-        const reportUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
-        const reportOptions = { headers: { 'x-apikey': vtApiKey } };
-        const reportResponse = await fetch(reportUrl, reportOptions);
-        if (!reportResponse.ok) throw new Error(`VT Report Error: ${reportResponse.statusText}`);
-        const reportData = await reportResponse.json();
-        const stats = reportData.data.attributes.stats;
-        return `Malicious: ${stats.malicious}\nSuspicious: ${stats.suspicious}\nHarmless: ${stats.harmless}\nUndetected: ${stats.undetected}`;
+            const reportUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
+            const reportOptions = { headers: { 'x-apikey': vtApiKey } };
+            const reportResponse = await fetch(reportUrl, reportOptions);
+            if (!reportResponse.ok) throw new Error(`VT Report Error: ${reportResponse.statusText}`);
+            const reportData = await reportResponse.json();
+            const stats = reportData.data.attributes.stats;
+            return `Malicious: ${stats.malicious}\nSuspicious: ${stats.suspicious}\nHarmless: ${stats.harmless}\nUndetected: ${stats.undetected}`;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const fetchShodan = async () => {
+        const shodanApiKey = process.env.SHODAN_API_KEY;
+        if (!shodanApiKey) return 'Shodan API Key not configured.';
+        
+        try {
+            const res = await fetch(`https://api.shodan.io/shodan/host/search?key=${shodanApiKey}&query=hostname:${domain}`);
+            if (!res.ok) throw new Error('Shodan API request failed.');
+            const data = await res.json();
+            
+            if (data.matches && data.matches.length > 0) {
+                const results = data.matches.slice(0, 5).map(match => 
+                    `${match.ip_str}:${match.port} - ${match.product || 'Unknown'}`
+                ).join('\n');
+                return `Found ${data.total} results:\n${results}`;
+            }
+            return 'No Shodan results found.';
+        } catch (error) {
+            throw error;
+        }
     };
 
     try {
-        const [crtShResult, vtResult] = await Promise.allSettled([
+        const [crtShResult, vtResult, shodanResult] = await Promise.allSettled([
             fetchCrtSh(),
-            fetchVirusTotal()
+            fetchVirusTotal(),
+            fetchShodan()
         ]);
 
         const responseData = {
             crtSh: crtShResult.status === 'fulfilled' ? crtShResult.value : `Error: ${crtShResult.reason.message}`,
-            virusTotal: vtResult.status === 'fulfilled' ? vtResult.value : `Error: ${vtResult.reason.message}`
+            virusTotal: vtResult.status === 'fulfilled' ? vtResult.value : `Error: ${vtResult.reason.message}`,
+            shodan: shodanResult.status === 'fulfilled' ? shodanResult.value : `Error: ${shodanResult.reason.message}`
         };
 
         return response.status(200).json(responseData);
