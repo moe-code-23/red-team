@@ -8,8 +8,7 @@ const getClientIp = (req) => {
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) {
         // 'x-forwarded-for' can be a comma-separated list of IPs. The first one is the original client.
-        const ip = forwarded.split(',')[0].trim();
-        return ip;
+        return forwarded.split(',')[0].trim();
     }
     return req.socket?.remoteAddress || req.headers['x-real-ip'] || '127.0.0.1';
 };
@@ -37,6 +36,7 @@ export default async function handler(request, response) {
 
     const requests = ipRequestMap.get(ip);
     
+    // Filter out requests that are outside the time window
     const recentRequests = requests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
     ipRequestMap.set(ip, recentRequests);
 
@@ -53,51 +53,60 @@ export default async function handler(request, response) {
         return response.status(400).json({ error: 'Domain is required' });
     }
 
+    // Basic domain validation regex
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
     if (!domainRegex.test(domain)) {
         return response.status(400).json({ error: 'Invalid domain format' });
     }
 
+    const fetchCrtSh = async () => {
+        const res = await fetch(`https://crt.sh/?q=%.${domain}&output=json`);
+        if (!res.ok) throw new Error('crt.sh API request failed.');
+        const data = await res.json();
+        const subdomains = [...new Set(data.map(item => item.name_value.replace(/\\*\\./g, '').toLowerCase()))].sort();
+        return subdomains.length > 0 ? subdomains.join('\n') : 'No subdomains found.';
+    };
+
+    const fetchVirusTotal = async () => {
+        if (!vtApiKey) return 'VirusTotal API Key not set on server.';
+        
+        const scanUrl = 'https://www.virustotal.com/api/v3/urls';
+        const scanOptions = {
+            method: 'POST',
+            headers: { 'x-apikey': vtApiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `url=https://${domain}`
+        };
+        const scanResponse = await fetch(scanUrl, scanOptions);
+        if (!scanResponse.ok) throw new Error(`VT Scan Submission Error: ${scanResponse.statusText}`);
+        const scanData = await scanResponse.json();
+        if (scanData.error) throw new Error(`VT Scan Error: ${scanData.error.message}`);
+        const analysisId = scanData.data.id;
+
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        const reportUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
+        const reportOptions = { headers: { 'x-apikey': vtApiKey } };
+        const reportResponse = await fetch(reportUrl, reportOptions);
+        if (!reportResponse.ok) throw new Error(`VT Report Error: ${reportResponse.statusText}`);
+        const reportData = await reportResponse.json();
+        const stats = reportData.data.attributes.stats;
+        return `Malicious: ${stats.malicious}\nSuspicious: ${stats.suspicious}\nHarmless: ${stats.harmless}\nUndetected: ${stats.undetected}`;
+    };
+
     try {
-        const crtShRes = await fetch(`https://crt.sh/?q=%.${domain}&output=json`);
-        if (!crtShRes.ok) throw new Error('crt.sh API request failed.');
-        const crtShData = await crtShRes.json();
-        const subdomains = [...new Set(crtShData.map(item => item.name_value.replace(/\*\./g, '').toLowerCase()))].sort();
+        const [crtShResult, vtResult] = await Promise.allSettled([
+            fetchCrtSh(),
+            fetchVirusTotal()
+        ]);
 
-        const enrichedData = await Promise.all(subdomains.map(async (subdomain) => {
-            let vtResults = null;
-            let screenshotUrl = null;
-            let openPorts = [];
+        const responseData = {
+            crtSh: crtShResult.status === 'fulfilled' ? crtShResult.value : `Error: ${crtShResult.reason.message}`,
+            virusTotal: vtResult.status === 'fulfilled' ? vtResult.value : `Error: ${vtResult.reason.message}`
+        };
 
-            if (vtApiKey) {
-                try {
-                    const vtRes = await fetch(`https://www.virustotal.com/api/v3/domains/${subdomain}`, { headers: { 'x-apikey': vtApiKey } });
-                    if (vtRes.ok) {
-                        const vtData = await vtRes.json();
-                        vtResults = vtData?.data?.attributes?.last_analysis_stats;
-                    }
-                } catch (e) { /* Ignore VT errors */ }
-            }
-
-            try {
-                const url = `https://${subdomain}`;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-                const portRes = await fetch(url, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (portRes.ok) {
-                    openPorts.push(443);
-                    screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=400`;
-                }
-            } catch (e) { /* Ignore connection errors */ }
-
-            return { subdomain, vtResults, screenshotUrl, openPorts };
-        }));
-
-        response.status(200).json({ nodes: enrichedData });
+        return response.status(200).json(responseData);
 
     } catch (error) {
-        response.status(500).json({ error: error.message });
+        return response.status(500).json({ error: error.message });
     }
 }
