@@ -12,9 +12,23 @@
 </head>
 <body>
     <div id="disclaimer-modal" class="modal-overlay active">
-        <div class="modal-content"><div class="modal-header"><h2><i class="fa-solid fa-triangle-exclamation"></i> Welcome, Matey!</h2></div><div class="modal-body"><p>This toolkit is crafted to assist Red Teamers and security professionals in their authorized and ethical penetration testing engagements.</p><p>It is intended for <strong>educational and professional use only.</strong></p><p class="warning-text">The creator is not responsible for any misuse of these tools. Use your powers wisely and ethically. By proceeding, you agree to these terms.</p></div><div class="modal-footer"><button id="accept-disclaimer" class="btn-primary">I Agree & Proceed</button></div></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-triangle-exclamation"></i> Welcome, Matey!</h2>
+            </div>
+            <div class="modal-body">
+                <p>This toolkit is crafted to assist Red Teamers and security professionals in their authorized and ethical penetration testing engagements.</p>
+                <p>It is intended for <strong>educational and professional use only.</strong></p>
+                <p class="warning-text">The creator is not responsible for any misuse of these tools. Use your powers wisely and ethically. By proceeding, you agree to these terms.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="accept-disclaimer" class="btn-primary">I Agree & Proceed</button>
+            </div>
+        </div>
     </div>
+
     <div id="grid-background"></div>
+
     <header id="top-header">
         <div class="logo-area">
             <i class="fa-solid fa-skull-crossbones"></i>
@@ -30,32 +44,303 @@
             </div>
         </div>
     </header>
+
     <aside id="sidebar">
         <nav class="sidebar-nav">
-            <a href="#" class="nav-link active" data-module="payload-generator" title="Payload Generator"><i class="fa-solid fa-bolt"></i></a>
-            <a href="#" class="nav-link" data-module="data-converter" title="Data Converter"><i class="fa-solid fa-right-left"></i></a>
-            <a href="#" class="nav-link" data-module="recon-dashboard" title="Recon Dashboard"><i class="fa-solid fa-shield-halved"></i></a>
+            <a href="#" class="nav-link active" data-module="payload-generator" title="Payload Generator">
+                <i class="fa-solid fa-bolt"></i>
+            </a>
+            <a href="#" class="nav-link" data-module="data-converter" title="Data Converter">
+                <i class="fa-solid fa-right-left"></i>
+            </a>
+            <a href="#" class="nav-link" data-module="network-scanner" title="Network Scanner">
+                <i class="fa-solid fa-radar"></i>
+            </a>
+            <a href="#" class="nav-link" data-module="recon-dashboard" title="Recon Dashboard">
+                <i class="fa-solid fa-shield-halved"></i>
+            </a>
         </nav>
         <div class="sidebar-footer">
-            <a href="#" id="settings-trigger" title="Theme Customizer"><i class="fa-solid fa-palette"></i></a>
+            <a href="#" id="settings-trigger" title="Theme Customizer">
+                <i class="fa-solid fa-palette"></i>
+            </a>
         </div>
     </aside>
+
     <main id="main-content">
-        <div id="payload-generator-module" class="module-container active"> <h1 class="module-title">Payload & Shell Generator</h1><div class="row"><div class="column-one-third"><div class="module-panel mb-4"><h5 class="panel-title"><i class="fa-solid fa-bullseye"></i> Target Configuration</h5><div class="form-group"><label for="ipAddress">Listener IP</label><input type="text" id="ipAddress" value="10.10.10.10"></div><div class="form-group"><label for="port">Listener Port</label><input type="number" id="port" value="4444"></div><div class="form-group"><label for="shellType">Shell Type</label><select id="shellType"><option value="reverse" selected>Reverse Shell</option><option value="bind">Bind Shell</option></select></div><div class="form-group"><label for="osType">Target OS</label><select id="osType"><option value="linux" selected>Linux</option><option value="windows">Windows</option></select></div><div class="form-group"><label for="payloadType">Payload Language</label><select id="payloadType"></select></div></div><div class="module-panel"><h5 class="panel-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Obfuscation Engine</h5><div class="form-switch"><input type="checkbox" id="obfuscateCase"><label for="obfuscateCase">Case Randomization</label></div><div class="form-switch"><input type="checkbox" id="obfuscateQuotes"><label for="obfuscateQuotes">String Splitting</label></div><div class="form-switch"><input type="checkbox" id="obfuscateCarets"><label for="obfuscateCarets">PS Caret Interruption</label></div><div class="form-group"><label for="encodingType">Encoding</label><select id="encodingType"><option value="none" selected>No Encoding</option><option value="base64">Base64</option><option value="hex">Hex</option></select></div></div></div><div class="column-two-thirds"><div class="module-panel"><div class="panel-header"><h5 class="panel-title"><i class="fa-solid fa-code"></i> Generated Payload</h5><button class="btn-primary" id="copyButton"><i class="fa-solid fa-copy"></i> Copy</button></div><pre id="outputCodeWrapper"><code id="outputCode"></code></pre></div><div class="module-panel mt-4"><h5 class="panel-title"><i class="fa-solid fa-circle-info"></i> Listener Setup</h5><p>Use this command to start your listener:</p><pre id="listenerCommandWrapper"><code id="listenerCommand"></code></pre></div></div></div></div>
-        <div id="data-converter-module" class="module-container"> <h1 class="module-title">Data Converter</h1><div class="row"><div class="column-one-third"><label class="input-label">Input</label><textarea id="converterInput" placeholder="Paste data here..."></textarea></div><div class="converter-controls"><div class="control-group"><div class="op-wrapper"><button data-op="b64-encode">To Base64</button><i class="fa-regular fa-circle-question info-icon" data-title="Base64 Encode" data-info="Converts plain text to Base64 format.<br><b>Ex:</b> hello → aGVsbG8="></i></div><div class="op-wrapper"><button data-op="b64-decode">From Base64</button><i class="fa-regular fa-circle-question info-icon" data-title="Base64 Decode" data-info="Converts Base64 back to plain text.<br><b>Ex:</b> aGVsbG8= → hello"></i></div></div><div class="control-group"><div class="op-wrapper"><button data-op="url-encode">To URL</button><i class="fa-regular fa-circle-question info-icon" data-title="URL Encode" data-info="Encodes special characters for safe use in URLs.<br><b>Ex:</b> a/b=c → a%2Fb%3Dc"></i></div><div class="op-wrapper"><button data-op="url-decode">From URL</button><i class="fa-regular fa-circle-question info-icon" data-title="URL Decode" data-info="Decodes URL-encoded strings back to their original form.<br><b>Ex:</b> a%2Fb%3Dc → a/b=c"></i></div></div><button id="swapButton" title="Swap Input/Output"><i class="fa-solid fa-right-left"></i></button><div class="control-group"><div class="op-wrapper"><button data-op="sha1">SHA-1</button><i class="fa-regular fa-circle-question info-icon" data-title="SHA-1 Hash" data-info="Generates a 160-bit hash. Common but less secure.<br><b>Ex:</b> admin → d033e2...c4da997"></i></div><div class="op-wrapper"><button data-op="sha256">SHA-256</button><i class="fa-regular fa-circle-question info-icon" data-title="SHA-256 Hash" data-info="Generates a 256-bit hash. A modern standard.<br><b>Ex:</b> admin → 8c6976...da2963"></i></div><div class="op-wrapper"><button data-op="sha512">SHA-512</button><i class="fa-regular fa-circle-question info-icon" data-title="SHA-512 Hash" data-info="Generates a 512-bit hash. Very strong.<br><b>Ex:</b> admin → c7ad44...0591fe"></i></div></div><div class="control-group"><div class="op-wrapper"><button data-op="jwt-debug" class="btn-warning">JWT Debug</button><i class="fa-regular fa-circle-question info-icon" data-title="JWT Debugger" data-info="Decodes a JSON Web Token to show its header and payload."></i></div></div></div><div class="column-one-third"><label class="input-label">Output</label><textarea id="converterOutput" placeholder="Result..." readonly></textarea></div></div></div>
-        <div id="recon-dashboard-module" class="module-container"> <h1 class="module-title">Reconnaissance Dashboard</h1><div class="api-note">Note: This tool uses a shared public API quota. If you receive an error, the treasure map might be temporarily unavailable.</div><div class="recon-input-group"><input type="text" id="reconDomainInput" placeholder="Enter a domain (e.g., example.com)"><button id="reconScanButton"><span id="reconScanButtonText">Scan</span></button></div><div id="funky-progress-bar" class="d-none"><div class="skeleton-spinner"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10,0,0,0,2,12A10,10,0,0,0,12,22A10,10,0,0,0,22,12A10,10,0,0,0,12,2M12,4A8,8,0,0,1,20,12H18A6,6,0,0,0,12,6V4M7,9A1,1,0,0,1,8,10A1,1,0,0,1,7,11A1,1,0,0,1,6,10A1,1,0,0,1,7,9M17,9A1,1,0,0,1,18,10A1,1,0,0,1,17,11A1,1,0,0,1,16,10A1,1,0,0,1,17,9M12,14C10,14,8,15,8,17H16C16,15,14,14,12,14Z"/></svg></div><div class="bone-progress"><div class="bone-fill"></div></div></div><div id="reconResults" class="mt-4"></div></div>
+        <div id="payload-generator-module" class="module-container active">
+            <h1 class="module-title">Payload & Shell Generator</h1>
+            <div class="row">
+                <div class="column-one-third">
+                    <div class="module-panel mb-4">
+                        <h5 class="panel-title"><i class="fa-solid fa-bullseye"></i> Target Configuration</h5>
+                        <div class="form-group">
+                            <label for="ipAddress">Listener IP</label>
+                            <input type="text" id="ipAddress" value="10.10.10.10">
+                        </div>
+                        <div class="form-group">
+                            <label for="port">Listener Port</label>
+                            <input type="number" id="port" value="4444">
+                        </div>
+                        <div class="form-group">
+                            <label for="shellType">Shell Type</label>
+                            <select id="shellType">
+                                <option value="reverse" selected>Reverse Shell</option>
+                                <option value="bind">Bind Shell</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="osType">Target OS</label>
+                            <select id="osType">
+                                <option value="linux" selected>Linux</option>
+                                <option value="windows">Windows</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="payloadType">Payload Language</label>
+                            <select id="payloadType"></select>
+                        </div>
+                    </div>
+                    
+                    <div class="module-panel">
+                        <h5 class="panel-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Advanced Obfuscation</h5>
+                        <div class="obfuscation-grid">
+                            <div class="form-switch">
+                                <input type="checkbox" id="obfuscateCase">
+                                <label for="obfuscateCase">Case Randomization</label>
+                            </div>
+                            <div class="form-switch">
+                                <input type="checkbox" id="obfuscateQuotes">
+                                <label for="obfuscateQuotes">String Splitting</label>
+                            </div>
+                            <div class="form-switch">
+                                <input type="checkbox" id="obfuscateCarets">
+                                <label for="obfuscateCarets">Caret Interruption</label>
+                            </div>
+                            <div class="form-switch">
+                                <input type="checkbox" id="variableObfuscation">
+                                <label for="variableObfuscation">Variable Renaming</label>
+                            </div>
+                            <div class="form-switch">
+                                <input type="checkbox" id="stringConcatenation">
+                                <label for="stringConcatenation">String Concat</label>
+                            </div>
+                            <div class="form-switch">
+                                <input type="checkbox" id="commentInjection">
+                                <label for="commentInjection">Comment Injection</label>
+                            </div>
+                            <div class="form-switch">
+                                <input type="checkbox" id="unicodeEscape">
+                                <label for="unicodeEscape">Unicode Escape</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="encodingType">Encoding</label>
+                            <select id="encodingType">
+                                <option value="none" selected>No Encoding</option>
+                                <option value="base64">Base64</option>
+                                <option value="hex">Hex</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="column-two-thirds">
+                    <div class="module-panel">
+                        <div class="panel-header">
+                            <h5 class="panel-title"><i class="fa-solid fa-code"></i> Generated Payload</h5>
+                            <button class="btn-primary" id="copyButton">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                        </div>
+                        <pre id="outputCodeWrapper"><code id="outputCode"></code></pre>
+                    </div>
+                    <div class="module-panel mt-4">
+                        <h5 class="panel-title"><i class="fa-solid fa-circle-info"></i> Listener Setup</h5>
+                        <p>Use this command to start your listener:</p>
+                        <pre id="listenerCommandWrapper"><code id="listenerCommand"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="data-converter-module" class="module-container">
+            <h1 class="module-title">Data Converter</h1>
+            <div class="row">
+                <div class="column-one-third">
+                    <label class="input-label">Input</label>
+                    <textarea id="converterInput" placeholder="Paste data here..."></textarea>
+                </div>
+                <div class="converter-controls">
+                    <div class="control-group">
+                        <div class="op-wrapper">
+                            <button data-op="b64-encode">To Base64</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="Base64 Encode" data-info="Converts plain text to Base64 format.<br><b>Ex:</b> hello → aGVsbG8="></i>
+                        </div>
+                        <div class="op-wrapper">
+                            <button data-op="b64-decode">From Base64</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="Base64 Decode" data-info="Converts Base64 back to plain text.<br><b>Ex:</b> aGVsbG8= → hello"></i>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="op-wrapper">
+                            <button data-op="url-encode">To URL</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="URL Encode" data-info="Encodes special characters for safe use in URLs.<br><b>Ex:</b> a/b=c → a%2Fb%3Dc"></i>
+                        </div>
+                        <div class="op-wrapper">
+                            <button data-op="url-decode">From URL</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="URL Decode" data-info="Decodes URL-encoded strings back to their original form.<br><b>Ex:</b> a%2Fb%3Dc → a/b=c"></i>
+                        </div>
+                    </div>
+                    <button id="swapButton" title="Swap Input/Output">
+                        <i class="fa-solid fa-right-left"></i>
+                    </button>
+                    <div class="control-group">
+                        <div class="op-wrapper">
+                            <button data-op="sha1">SHA-1</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="SHA-1 Hash" data-info="Generates a 160-bit hash. Common but less secure.<br><b>Ex:</b> admin → d033e2...c4da997"></i>
+                        </div>
+                        <div class="op-wrapper">
+                            <button data-op="sha256">SHA-256</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="SHA-256 Hash" data-info="Generates a 256-bit hash. A modern standard.<br><b>Ex:</b> admin → 8c6976...da2963"></i>
+                        </div>
+                        <div class="op-wrapper">
+                            <button data-op="sha512">SHA-512</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="SHA-512 Hash" data-info="Generates a 512-bit hash. Very strong.<br><b>Ex:</b> admin → c7ad44...0591fe"></i>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="op-wrapper">
+                            <button data-op="jwt-debug" class="btn-warning">JWT Debug</button>
+                            <i class="fa-regular fa-circle-question info-icon" data-title="JWT Debugger" data-info="Decodes a JSON Web Token to show its header and payload."></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="column-one-third">
+                    <label class="input-label">Output</label>
+                    <textarea id="converterOutput" placeholder="Result..." readonly></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div id="network-scanner-module" class="module-container">
+            <h1 class="module-title">Live Network Scanner</h1>
+            <div class="scanner-note">
+                <i class="fa-solid fa-skull-crossbones"></i>
+                Real-time network reconnaissance at your fingertips, matey!
+            </div>
+            
+            <div class="row">
+                <div class="column-one-third">
+                    <div class="module-panel">
+                        <h5 class="panel-title"><i class="fa-solid fa-crosshairs"></i> Target Configuration</h5>
+                        <div class="form-group">
+                            <label for="scanTarget">Target (IP/CIDR/Domain)</label>
+                            <input type="text" id="scanTarget" placeholder="192.168.1.0/24">
+                        </div>
+                        <div class="form-group">
+                            <label for="scanType">Scan Type</label>
+                            <select id="scanType">
+                                <option value="ping">Ping Sweep</option>
+                                <option value="port">Port Scan</option>
+                                <option value="service">Service Detection</option>
+                                <option value="vuln">Vulnerability Check</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="portRangeGroup" style="display: none;">
+                            <label for="portRange">Port Range</label>
+                            <input type="text" id="portRange" value="1-1000" placeholder="80,443,22 or 1-1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="scanThreads">Threads</label>
+                            <select id="scanThreads">
+                                <option value="10">10 (Slow)</option>
+                                <option value="50" selected>50 (Normal)</option>
+                                <option value="100">100 (Fast)</option>
+                                <option value="200">200 (Aggressive)</option>
+                            </select>
+                        </div>
+                        <button id="startScanBtn" class="btn-primary">
+                            <i class="fa-solid fa-play"></i> Start Scan
+                        </button>
+                        <button id="stopScanBtn" class="btn-danger" style="display: none;">
+                            <i class="fa-solid fa-stop"></i> Stop Scan
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="column-two-thirds">
+                    <div class="module-panel">
+                        <div class="panel-header">
+                            <h5 class="panel-title"><i class="fa-solid fa-radar"></i> Live Results</h5>
+                            <div class="scan-stats">
+                                <span id="scanProgress">Ready</span>
+                                <span id="foundHosts">0 hosts</span>
+                            </div>
+                        </div>
+                        <div id="scanResults" class="scan-results-container">
+                            <div class="scan-placeholder">
+                                <i class="fa-solid fa-satellite-dish"></i>
+                                <p>Configure your scan and hit "Start Scan" to begin reconnaissance</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="recon-dashboard-module" class="module-container">
+            <h1 class="module-title">Reconnaissance Dashboard</h1>
+            <div class="api-note">Note: This tool uses a shared public API quota. If you receive an error, the treasure map might be temporarily unavailable.</div>
+            <div class="recon-input-group">
+                <input type="text" id="reconDomainInput" placeholder="Enter a domain (e.g., example.com)">
+                <button id="reconScanButton">
+                    <span id="reconScanButtonText">Scan</span>
+                </button>
+            </div>
+            <div id="funky-progress-bar" class="d-none">
+                <div class="skeleton-spinner">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2A10,10,0,0,0,2,12A10,10,0,0,0,12,22A10,10,0,0,0,22,12A10,10,0,0,0,12,2M12,4A8,8,0,0,1,20,12H18A6,6,0,0,0,12,6V4M7,9A1,1,0,0,1,8,10A1,1,0,0,1,7,11A1,1,0,0,1,6,10A1,1,0,0,1,7,9M17,9A1,1,0,0,1,18,10A1,1,0,0,1,17,11A1,1,0,0,1,16,10A1,1,0,0,1,17,9M12,14C10,14,8,15,8,17H16C16,15,14,14,12,14Z"/>
+                    </svg>
+                </div>
+                <div class="bone-progress">
+                    <div class="bone-fill"></div>
+                </div>
+            </div>
+            <div id="reconResults" class="mt-4"></div>
+        </div>
     </main>
-    <div id="theme-modal" class="modal-overlay"> <div class="modal-content"><div class="modal-header"><h2><i class="fa-solid fa-palette"></i> Choose Your Theme</h2><button id="close-theme-modal" class="close-button">×</button></div><div class="modal-body"><p>Select a theme to customize your toolkit's appearance. Your choice is saved automatically.</p><div class="theme-buttons"><button class="theme-btn" data-theme="default">Nautical Night</button><button class="theme-btn" data-theme="crimson">Crimson Corsair</button><button class="theme-btn" data-theme="gilded">Gilded Hoard</button><button class="theme-btn" data-theme="abyss">Deep Sea Abyss</button><button class="theme-btn" data-theme="matrix">Monochrome Matrix</button></div></div></div></div>
-    <div id="info-tooltip"><h6 id="tooltip-title"></h6><p id="tooltip-info"></p></div>
+
+    <div id="theme-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-palette"></i> Choose Your Theme</h2>
+                <button id="close-theme-modal" class="close-button">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Select a theme to customize your toolkit's appearance. Your choice is saved automatically.</p>
+                <div class="theme-buttons">
+                    <button class="theme-btn" data-theme="default">Nautical Night</button>
+                    <button class="theme-btn" data-theme="crimson">Crimson Corsair</button>
+                    <button class="theme-btn" data-theme="gilded">Gilded Hoard</button>
+                    <button class="theme-btn" data-theme="abyss">Deep Sea Abyss</button>
+                    <button class="theme-btn" data-theme="matrix">Monochrome Matrix</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-tooltip">
+        <h6 id="tooltip-title"></h6>
+        <p id="tooltip-info"></p>
+    </div>
     
-    <!-- VERCEL INSIGHTS & ANALYTICS -->
     <script src="/_vercel/speed-insights/script.js" defer></script>
     <script>
         window.va = window.va || function () { (window.va.q = window.va.q || []).push(arguments); };
     </script>
     <script src="/_vercel/insights/script.js" defer></script>
-    
-    <!-- YOUR APP SCRIPT -->
     <script src="app.js"></script>
 </body>
 </html>
