@@ -1,17 +1,9 @@
+import { getClientIp } from '@/utils/get-client-ip';
+
 const ipRequestMap = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute in milliseconds
 const MAX_REQUESTS_PER_WINDOW = 10; // Allow 10 requests per minute per user
 const IP_CLEANUP_INTERVAL = 300000; // 5 minutes
-
-// Function to get the real client IP address
-const getClientIp = (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) {
-        // 'x-forwarded-for' can be a comma-separated list of IPs. The first one is the original client.
-        return forwarded.split(',')[0].trim();
-    }
-    return req.socket?.remoteAddress || req.headers['x-real-ip'] || '127.0.0.1';
-};
 
 // Periodically clean up old entries from the map
 setInterval(() => {
@@ -59,54 +51,55 @@ export default async function handler(request, response) {
         return response.status(400).json({ error: 'Invalid domain format' });
     }
 
-    const fetchCrtSh = async () => {
-        const res = await fetch(`https://crt.sh/?q=%.${domain}&output=json`);
-        if (!res.ok) throw new Error('crt.sh API request failed.');
-        const data = await res.json();
-        const subdomains = [...new Set(data.map(item => item.name_value.replace(/\\*\\./g, '').toLowerCase()))].sort();
-        return subdomains.length > 0 ? subdomains.join('\n') : 'No subdomains found.';
-    };
-
-    const fetchVirusTotal = async () => {
-        if (!vtApiKey) return 'VirusTotal API Key not set on server.';
-        
-        const scanUrl = 'https://www.virustotal.com/api/v3/urls';
-        const scanOptions = {
-            method: 'POST',
-            headers: { 'x-apikey': vtApiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `url=https://${domain}`
-        };
-        const scanResponse = await fetch(scanUrl, scanOptions);
-        if (!scanResponse.ok) throw new Error(`VT Scan Submission Error: ${scanResponse.statusText}`);
-        const scanData = await scanResponse.json();
-        if (scanData.error) throw new Error(`VT Scan Error: ${scanData.error.message}`);
-        const analysisId = scanData.data.id;
-
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        const reportUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
-        const reportOptions = { headers: { 'x-apikey': vtApiKey } };
-        const reportResponse = await fetch(reportUrl, reportOptions);
-        if (!reportResponse.ok) throw new Error(`VT Report Error: ${reportResponse.statusText}`);
-        const reportData = await reportResponse.json();
-        const stats = reportData.data.attributes.stats;
-        return `Malicious: ${stats.malicious}\nSuspicious: ${stats.suspicious}\nHarmless: ${stats.harmless}\nUndetected: ${stats.undetected}`;
-    };
-
     try {
-        const [crtShResult, vtResult] = await Promise.allSettled([
-            fetchCrtSh(),
-            fetchVirusTotal()
-        ]);
+        // 1. Get subdomains from crt.sh
+        const crtShRes = await fetch(`https://crt.sh/?q=%.${domain}&output=json`);
+        if (!crtShRes.ok) throw new Error('crt.sh API request failed.');
+        const crtShData = await crtShRes.json();
+        const subdomains = [...new Set(crtShData.map(item => item.name_value.replace(/\*\./g, '').toLowerCase()))].sort();
 
-        const responseData = {
-            crtSh: crtShResult.status === 'fulfilled' ? crtShResult.value : `Error: ${crtShResult.reason.message}`,
-            virusTotal: vtResult.status === 'fulfilled' ? vtResult.value : `Error: ${vtResult.reason.message}`
-        };
+        // 2. Enrich each subdomain
+        const enrichedData = await Promise.all(subdomains.map(async (subdomain) => {
+            let vtResults = null;
+            let screenshotUrl = null;
+            let openPorts = [];
 
-        return response.status(200).json(responseData);
+            // a. VirusTotal Scan
+            if (vtApiKey) {
+                try {
+                    const vtRes = await fetch(`https://www.virustotal.com/api/v3/domains/${subdomain}`, { headers: { 'x-apikey': vtApiKey } });
+                    if (vtRes.ok) {
+                        const vtData = await vtRes.json();
+                        vtResults = vtData.data.attributes.last_analysis_stats;
+                    }
+                } catch (e) { /* Ignore VT errors */ }
+            }
+
+            // b. Check common web ports and get screenshot
+            for (const port of [80, 443]) {
+                try {
+                    const protocol = port === 443 ? 'https' : 'http';
+                    const url = `${protocol}://${subdomain}`;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3-second timeout
+                    const portRes = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (portRes.ok) {
+                        openPorts.push(port);
+                        // Use a screenshot API if available (e.g., screenshotapi.net)
+                        // For this example, we'll just use a placeholder
+                        screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=400`;
+                    }
+                } catch (e) { /* Ignore connection errors */ }
+            }
+
+            return { subdomain, vtResults, screenshotUrl, openPorts };
+        }));
+
+        response.status(200).json({ nodes: enrichedData });
 
     } catch (error) {
-        return response.status(500).json({ error: error.message });
+        response.status(500).json({ error: error.message });
     }
 }
