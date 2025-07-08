@@ -68,7 +68,7 @@ button:hover, .btn-primary:hover { background-color: var(--primary-accent); bord
 pre { background-color: var(--bg-color); border-radius: 6px; padding: 15px; font-family: var(--font-mono); white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; }
 .form-switch { display: flex; align-items: center; margin-bottom: 15px; }
 .form-switch input { width: auto; margin-right: 10px; }
-textarea { min-height: 300px; resize: vertical; }
+textarea { min-height: 200px; resize: vertical; }
 .control-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 .op-wrapper { display: flex; align-items: center; gap: 10px; }
 .op-wrapper button { flex-grow: 1; }
@@ -107,21 +107,45 @@ textarea { min-height: 300px; resize: vertical; }
 .theme-btn[data-theme="abyss"] { border-color: #1e88e5; color: #1e88e5; }
 .theme-btn[data-theme="matrix"] { border-color: #00ff41; color: #00ff41; }
 
+/* Chimera Styles */
+#chimera-progress-container { margin-top: 20px; text-align: center; }
+#chimera-progress-bar { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+#chimera-progress-bar::before { content: ''; display: block; width: 0%; height: 100%; background-color: var(--primary-accent); transition: width 0.3s ease; }
+#chimera-progress-text { font-size: 0.9rem; color: var(--text-secondary); }
+
+#chimera-graph-container { position: relative; width: 100%; height: 60vh; margin-top: 20px; }
+#chimera-graph { width: 100%; height: 100%; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--panel-bg); }
+
+#chimera-sidebar { position: absolute; right: 0; top: 0; width: 350px; height: 100%; transform: translateX(110%); transition: transform 0.3s ease-in-out; z-index: 10; padding: 20px; overflow-y: auto; }
+#chimera-sidebar.active { transform: translateX(0); }
+#close-sidebar-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.8rem; color: var(--text-secondary); cursor: pointer; }
+#sidebar-title { margin-top: 10px; }
+#sidebar-content img { width: 100%; border-radius: 6px; margin-top: 15px; }
+#sidebar-content pre { margin-top: 15px; }
+
+@media (max-width: 1024px) {
+    #chimera-sidebar { width: 300px; }
+}
+
 @media (max-width: 768px) {
     body { grid-template-columns: 1fr; grid-template-rows: 60px 1fr 60px; }
     #top-header { grid-column: 1; grid-row: 1; padding: 0 15px; }
     #main-content { grid-column: 1; grid-row: 2; padding: 15px; padding-bottom: 75px; }
-    #sidebar { grid-column: 1; grid-row: 3; flex-direction: row; position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; padding: 0; border-right: none; border-top: 1px solid var(--border-color); }
+    #sidebar { grid-column: 1; grid-row: 3; flex-direction: row; position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; padding: 0; border-right: none; border-top: 1px solid var(--border-color); z-index: 5; }
     .sidebar-nav { flex-direction: row; justify-content: space-around; align-items: center; width: 100%; margin: 0; }
     .nav-link { flex: 1; }
-    .nav-link.active::before { left: 10%; top: 0; height: 3px; width: 80%; border-radius: 0 0 4px 4px; }
-    .sidebar-footer { width: auto; margin: 0; padding-right: 15px;}
+    .nav-link.active::before { left: 10%; top: auto; bottom: 0; height: 3px; width: 80%; border-radius: 4px 4px 0 0; }
+    .sidebar-footer { display: none; } /* Hide theme switcher on mobile nav for simplicity */
     .pirate-container, .title-area p { display: none; }
     .title-area h1 { font-size: 1.5rem; }
     .row { flex-direction: column; }
     #data-converter-module .row { flex-direction: column; }
-    .converter-controls { flex-direction: row; flex-wrap: wrap; order: -1; padding-bottom: 20px; }
+    .converter-controls { flex-direction: row; flex-wrap: wrap; order: -1; padding: 0 0 20px 0; justify-content: center; }
     .control-group { flex-direction: row; gap: 10px; }
     #swapButton { order: 0; }
     .modal-content { width: 95%; }
+
+    #chimera-graph-container { height: 50vh; }
+    #chimera-sidebar { width: 100%; height: 50%; bottom: 0; top: auto; transform: translateY(110%); }
+    #chimera-sidebar.active { transform: translateY(0); }
 }
