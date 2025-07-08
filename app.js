@@ -523,14 +523,39 @@ document.addEventListener('DOMContentLoaded', () => {
             const commonPorts = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995, 8080, 8443];
             const services = ['SSH', 'HTTP', 'HTTPS', 'FTP', 'SMTP', 'DNS', 'Telnet', 'POP3', 'IMAP'];
             
-            const generateRandomIP = () => {
-                return `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+            const generateTargetBasedHost = (baseTarget) => {
+                // If it's a domain, return the domain with different subdomains
+                if (baseTarget.includes('.') && !baseTarget.match(/^\d+\.\d+\.\d+\.\d+/)) {
+                    const subdomains = ['www', 'mail', 'ftp', 'admin', 'api', 'dev', 'staging'];
+                    const randomSub = subdomains[Math.floor(Math.random() * subdomains.length)];
+                    return `${randomSub}.${baseTarget}`;
+                }
+                
+                // If it's an IP or CIDR, generate IPs in that range
+                if (baseTarget.includes('/')) {
+                    const [baseIp] = baseTarget.split('/');
+                    const ipParts = baseIp.split('.');
+                    ipParts[3] = Math.floor(Math.random() * 254) + 1;
+                    return ipParts.join('.');
+                }
+                
+                // If it's a single IP, vary the last octet slightly
+                if (baseTarget.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+                    const ipParts = baseTarget.split('.');
+                    const lastOctet = parseInt(ipParts[3]);
+                    const variation = Math.floor(Math.random() * 10) - 5; // -5 to +5
+                    ipParts[3] = Math.max(1, Math.min(254, lastOctet + variation));
+                    return ipParts.join('.');
+                }
+                
+                // Default fallback
+                return baseTarget;
             };
 
             const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
             for (let i = 0; i < 20 && isScanning; i++) {
-                const host = generateRandomIP();
+                const host = generateTargetBasedHost(target);
                 const port = commonPorts[Math.floor(Math.random() * commonPorts.length)];
                 const service = services[Math.floor(Math.random() * services.length)];
                 const status = Math.random() > 0.7 ? 'open' : 'closed';
